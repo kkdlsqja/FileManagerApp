@@ -53,8 +53,8 @@ public class LoginActivity extends AppCompatActivity {
         tvGoToSignup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Toast.makeText(LoginActivity.this, "회원가입 화면으로 이동합니다.", Toast.LENGTH_SHORT).show();
-                // 향후 추가할 SignupActivity로 이동하는 코드 작성 예정
+                Intent intent = new Intent(LoginActivity.this, SignupActivity.class);
+                startActivity(intent);
             }
         });
     }
@@ -63,7 +63,7 @@ public class LoginActivity extends AppCompatActivity {
         ApiService apiService = RetrofitClient.getClient().create(ApiService.class);
         AuthRequest request = new AuthRequest(email, password);
 
-        Call<String> call = apiService.login(request);
+        Call<String> call = apiService.login(email, password);
         call.enqueue(new Callback<String>() {
             @Override
             public void onResponse(Call<String> call, Response<String> response) {

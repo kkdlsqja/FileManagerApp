@@ -1,5 +1,6 @@
 package com.filemanager.app;
 
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -40,13 +41,13 @@ public class PcListAdapter extends RecyclerView.Adapter<PcListAdapter.ViewHolder
         holder.tvPcName.setText(device.getPcName());
         holder.tvPcIdentifier.setText("식별자: " + device.getPcIdentifier());
 
-        holder.itemView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (listener != null) {
-                    listener.onItemClick(device); // 클릭된 PC 정보를 MainActivity로 쏴줍니다!
-                }
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onItemClick(device); // 클릭된 PC 정보를 MainActivity로 쏴줍니다!
             }
+            Intent intent = new Intent(v.getContext(), FileListActivity.class);
+            intent.putExtra("PC_ID", device.getId());
+            v.getContext().startActivity(intent);
         });
     }
 

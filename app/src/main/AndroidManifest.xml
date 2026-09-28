@@ -28,6 +28,16 @@
             android:name=".MainActivity"
             android:exported="false" />
 
+        <!-- 5. 새롭게 추가한 회원가입 화면: SignupActivity -->
+        <activity
+            android:name=".SignupActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".FileListActivity"
+            android:exported="false"
+            />
+
     </application>
 
 </manifest>
