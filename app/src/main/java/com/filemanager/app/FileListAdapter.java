@@ -5,24 +5,33 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
-import android.widget.Toast;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.filemanager.app.network.RemoteFile;
+
 import java.util.List;
 
 public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHolder> {
-    private List<RemoteFile> fileList;
 
-    public FileListAdapter(List<RemoteFile> fileList) {
+    public interface OnItemClickListener {
+        void onItemClick(RemoteFile file);
+    }
+
+    private List<RemoteFile> fileList;
+    private final OnItemClickListener listener;
+
+    public FileListAdapter(List<RemoteFile> fileList, OnItemClickListener listener) {
         this.fileList = fileList;
+        this.listener = listener;
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_file, parent, false);
+        View view = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_file, parent, false);
         return new ViewHolder(view);
     }
 
@@ -31,32 +40,35 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         RemoteFile file = fileList.get(position);
         holder.tvFileName.setText(file.getFileName());
 
-        // 폴더/파일 구분에 따른 아이콘 변경
         if (file.isDirectory()) {
-            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_sort_by_size); // 폴더 임시 아이콘
+            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_sort_by_size);
+            holder.itemView.setContentDescription("폴더 " + file.getFileName() + ", 열기");
         } else {
-            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_gallery); // 파일 임시 아이콘
+            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_gallery);
+            holder.itemView.setContentDescription("파일 " + file.getFileName());
         }
 
-        // 아이템 클릭 이벤트 (나중에 폴더 진입이나 다운로드 연결용)
-        holder.itemView.setOnClickListener(v -> {
-            Toast.makeText(v.getContext(), file.getFileName() + " 클릭됨", Toast.LENGTH_SHORT).show();
+        holder.itemView.setOnClickListener(view -> {
+            int currentPosition = holder.getBindingAdapterPosition();
+            if (currentPosition != RecyclerView.NO_POSITION && listener != null) {
+                listener.onItemClick(fileList.get(currentPosition));
+            }
         });
     }
 
     @Override
     public int getItemCount() {
-        return fileList != null ? fileList.size() : 0;
+        return fileList == null ? 0 : fileList.size();
     }
 
     public void updateList(List<RemoteFile> newList) {
         this.fileList = newList;
-        notifyDataSetChanged(); // 리스트 새로고침
+        notifyDataSetChanged();
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView tvFileName;
-        ImageView ivFileIcon;
+        final TextView tvFileName;
+        final ImageView ivFileIcon;
 
         ViewHolder(View itemView) {
             super(itemView);
