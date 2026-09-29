@@ -12,10 +12,19 @@
         android:text="PC 목록 불러오기"
         android:textSize="18sp" />
 
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="로그아웃"
+        android:textSize="16sp" />
+
     <!-- 서버에서 받아온 목록이 스크롤되며 표시될 공간 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:layout_marginTop="16dp" />
 </LinearLayout>

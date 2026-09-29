@@ -5,45 +5,56 @@ import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
-import retrofit2.http.POST; // POST 임포트 필요
+import retrofit2.http.Header;
+import retrofit2.http.POST;
 import retrofit2.http.Query;
 
 public interface ApiService {
 
-    // --- 새로 추가할 인증(Auth) API ---
-
-    // 1. 회원가입 API
     @POST("api/auth/signup")
-    Call<String> signup(@Query("email") String email, @Query("password") String password);
+    Call<String> signup(@Body AuthRequest request);
 
-    // 2. 로그인 API
     @POST("api/auth/login")
-    Call<String> login(@Query("email") String email, @Query("password") String password);
+    Call<String> login(@Body AuthRequest request);
 
+    @GET("api/auth/verify")
+    Call<String> verifyToken(
+            @Header("Authorization") String authorization
+    );
 
-    // --- 기존 PC 관련 API (그대로 유지) ---
+    @POST("api/auth/logout")
+    Call<String> logout(
+            @Header("Authorization") String authorization
+    );
 
-    @GET("api/pc/register")
-    Call<String> registerPc(
-            @Query("userId") Long userId,
+    @POST("api/pc/register")
+    Call<PcDevice> registerPc(
+            @Header("Authorization") String authorization,
             @Query("pcName") String pcName,
             @Query("pcIdentifier") String pcIdentifier
     );
 
     @GET("api/pc/list")
     Call<List<PcDevice>> getPcList(
-            @Query("userId") Long userId
+            @Header("Authorization") String authorization
     );
 
     @GET("api/pc/connect")
     Call<String> connectPc(
+            @Header("Authorization") String authorization,
             @Query("pcId") Long pcId
     );
 
-    // 원격 파일 목록 가져오기 API
     @GET("api/files/list")
     Call<List<RemoteFile>> getFileList(
+            @Header("Authorization") String authorization,
             @Query("pcId") Long pcId,
-            @Query("path") String path  // 최상위 경로는 "/" 또는 ""로 전달
+            @Query("path") String path
+    );
+
+    @GET("api/files/history")
+    Call<List<FileOperationLogItem>> getFileHistory(
+            @Header("Authorization") String authorization,
+            @Query("pcId") Long pcId
     );
 }

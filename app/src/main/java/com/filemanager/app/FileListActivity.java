@@ -1,8 +1,11 @@
 package com.filemanager.app;
 
 import android.os.Bundle;
+import android.content.Intent;
 import android.util.Log;
+import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -12,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.filemanager.app.network.ApiService;
 import com.filemanager.app.network.RemoteFile;
 import com.filemanager.app.network.RetrofitClient;
+import com.filemanager.app.network.SessionStore;
 
 import org.json.JSONObject;
 
@@ -36,6 +40,14 @@ public class FileListActivity extends AppCompatActivity {
     private RecyclerView rvFileList;
     private FileListAdapter adapter;
     private TextView tvCurrentPath;
+    private Button btnSortFiles;
+    private Button btnViewHistory;
+    private int currentSortMode = FileListAdapter.SORT_BY_NAME;
+    private final String[] sortLabels = {
+            "정렬: 이름순",
+            "정렬: 수정일 최신순",
+            "정렬: 크기 큰순"
+    };
 
     private Long pcId;
     private String currentPath = "/";
@@ -47,13 +59,32 @@ public class FileListActivity extends AppCompatActivity {
         setContentView(R.layout.activity_file_list);
 
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
+        btnSortFiles = findViewById(R.id.btnSortFiles);
+        btnViewHistory = findViewById(R.id.btnViewHistory);
         rvFileList = findViewById(R.id.rvFileList);
         rvFileList.setLayoutManager(new LinearLayoutManager(this));
 
-        adapter = new FileListAdapter(new ArrayList<>(), this::onFileItemClicked);
+        adapter = new FileListAdapter(
+                new ArrayList<>(),
+                this::onFileItemClicked
+        );
         rvFileList.setAdapter(adapter);
 
+        btnSortFiles.setText(sortLabels[currentSortMode]);
+        btnSortFiles.setOnClickListener(view -> {
+            currentSortMode = (currentSortMode + 1) % sortLabels.length;
+            adapter.setSortMode(currentSortMode);
+            btnSortFiles.setText(sortLabels[currentSortMode]);
+        });
+
+        btnViewHistory.setOnClickListener(view -> {
+            Intent intent = new Intent(FileListActivity.this, FileHistoryActivity.class);
+            intent.putExtra("PC_ID", pcId);
+            startActivity(intent);
+        });
+
         pcId = getIntent().getLongExtra("PC_ID", -1L);
+
         if (pcId == null || pcId <= 0L) {
             tvCurrentPath.setText("PC 정보 없음");
             showToast("PC 정보를 불러오지 못했습니다. PC 목록에서 다시 선택해 주세요.");
@@ -69,11 +100,12 @@ public class FileListActivity extends AppCompatActivity {
         }
 
         if (!file.isDirectory()) {
-            // 이 화면은 PC 파일 목록을 확인하는 용도입니다. 파일 이동은 PC에서 처리합니다.
+            // 이 화면은 파일 목록 확인용입니다. 파일 이동은 PC에서 처리합니다.
             return;
         }
 
         String basePath = normalizeDisplayPath(currentPath);
+
         if ("/".equals(basePath)) {
             loadFiles(file.getFileName());
         } else {
@@ -90,14 +122,30 @@ public class FileListActivity extends AppCompatActivity {
             currentCall.cancel();
         }
 
-        ApiService apiService = RetrofitClient.getClient().create(ApiService.class);
-        currentCall = apiService.getFileList(pcId, currentPath);
+        String authorization =
+                SessionStore.getAuthorizationHeader(this);
+
+        if (authorization == null) {
+            showToast("로그인이 필요합니다. 다시 로그인해 주세요.");
+            return;
+        }
+
+        ApiService apiService =
+                RetrofitClient.getClient().create(ApiService.class);
+
+        // 인증 토큰, PC ID, 경로 순서로 전달합니다.
+        currentCall = apiService.getFileList(
+                authorization,
+                pcId,
+                currentPath
+        );
 
         currentCall.enqueue(new Callback<List<RemoteFile>>() {
             @Override
             public void onResponse(
                     Call<List<RemoteFile>> call,
                     Response<List<RemoteFile>> response) {
+
                 if (isFinishing() || isDestroyed()) {
                     return;
                 }
@@ -106,6 +154,7 @@ public class FileListActivity extends AppCompatActivity {
 
                 if (response.isSuccessful()) {
                     List<RemoteFile> files = response.body();
+
                     if (files == null) {
                         adapter.updateList(new ArrayList<>());
                         showToast("서버에서 파일 목록을 받지 못했습니다.");
@@ -113,6 +162,7 @@ public class FileListActivity extends AppCompatActivity {
                     }
 
                     adapter.updateList(files);
+
                     if (files.isEmpty()) {
                         showToast("이 폴더에는 파일이나 하위 폴더가 없습니다.");
                     }
@@ -124,7 +174,10 @@ public class FileListActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onFailure(Call<List<RemoteFile>> call, Throwable throwable) {
+            public void onFailure(
+                    Call<List<RemoteFile>> call,
+                    Throwable throwable) {
+
                 if (call.isCanceled() || isFinishing() || isDestroyed()) {
                     return;
                 }
@@ -142,12 +195,15 @@ public class FileListActivity extends AppCompatActivity {
         }
 
         String normalized = path.trim().replace('\\', '/');
+
         while (normalized.startsWith("/")) {
             normalized = normalized.substring(1);
         }
+
         while (normalized.endsWith("/")) {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
+
         return normalized.isEmpty() ? "/" : normalized;
     }
 
@@ -157,11 +213,13 @@ public class FileListActivity extends AppCompatActivity {
         }
 
         int lastSlash = currentPath.lastIndexOf('/');
+
         if (lastSlash < 0) {
             loadFiles("/");
         } else {
             loadFiles(currentPath.substring(0, lastSlash));
         }
+
         return true;
     }
 
@@ -193,14 +251,18 @@ public class FileListActivity extends AppCompatActivity {
                 message = "서버에서 파일 목록을 처리하지 못했습니다.";
                 break;
             default:
-                message = "서버 응답 오류가 발생했습니다. (HTTP " + statusCode + ")";
+                message = "서버 응답 오류가 발생했습니다. (HTTP "
+                        + statusCode + ")";
                 break;
         }
 
-        String serverMessage = readServerErrorMessage(response.errorBody());
+        String serverMessage =
+                readServerErrorMessage(response.errorBody());
+
         if (!serverMessage.isEmpty()) {
             message += "\n서버 안내: " + serverMessage;
         }
+
         return message;
     }
 
@@ -211,6 +273,7 @@ public class FileListActivity extends AppCompatActivity {
 
         try {
             String body = errorBody.string();
+
             if (body == null || body.trim().isEmpty()) {
                 return "";
             }
@@ -218,16 +281,19 @@ public class FileListActivity extends AppCompatActivity {
             try {
                 JSONObject json = new JSONObject(body.trim());
                 String[] keys = {"message", "detail", "error"};
+
                 for (String key : keys) {
                     String value = json.optString(key, "").trim();
-                    if (!value.isEmpty() && !"null".equalsIgnoreCase(value)) {
+
+                    if (!value.isEmpty()
+                            && !"null".equalsIgnoreCase(value)) {
                         return value.length() > 160
                                 ? value.substring(0, 160) + "..."
                                 : value;
                     }
                 }
             } catch (Exception ignored) {
-                // JSON 오류 응답이 아니면 본문을 화면에 그대로 표시하지 않습니다.
+                // JSON 오류 응답이 아니면 본문을 그대로 표시하지 않습니다.
             }
         } catch (IOException exception) {
             Log.w(TAG, "서버 오류 내용을 읽지 못했습니다.", exception);
@@ -238,6 +304,7 @@ public class FileListActivity extends AppCompatActivity {
 
     private String createNetworkErrorMessage(Throwable throwable) {
         Throwable cause = throwable;
+
         while (cause.getCause() != null && cause.getCause() != cause) {
             cause = cause.getCause();
         }
@@ -245,15 +312,19 @@ public class FileListActivity extends AppCompatActivity {
         if (cause instanceof SocketTimeoutException) {
             return "서버 응답 시간이 초과됐습니다. 서버가 실행 중인지 확인해 주세요.";
         }
+
         if (cause instanceof UnknownHostException) {
             return "서버 주소를 찾을 수 없습니다. 네트워크와 서버 주소를 확인해 주세요.";
         }
+
         if (cause instanceof ConnectException) {
             return "서버에 연결할 수 없습니다. 서버 실행 상태를 확인해 주세요.";
         }
+
         if (cause instanceof SSLException) {
             return "보안 연결에 실패했습니다. 서버 연결 설정을 확인해 주세요.";
         }
+
         return "네트워크 연결에 실패했습니다. 인터넷과 서버 상태를 확인해 주세요.";
     }
 
@@ -268,6 +339,7 @@ public class FileListActivity extends AppCompatActivity {
         if (currentCall != null) {
             currentCall.cancel();
         }
+
         super.onDestroy();
     }
 }

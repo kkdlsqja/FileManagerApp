@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.filemanager.app.network.ApiService;
 import com.filemanager.app.network.AuthRequest;
 import com.filemanager.app.network.RetrofitClient;
+import com.filemanager.app.network.SessionStore;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -32,6 +33,8 @@ public class LoginActivity extends AppCompatActivity {
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
         tvGoToSignup = findViewById(R.id.tvGoToSignup);
+
+        verifyExistingSession();
 
         // 로그인 버튼 클릭 시
         btnLogin.setOnClickListener(new View.OnClickListener() {
@@ -59,22 +62,57 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 
+    private void verifyExistingSession() {
+        String authorization = SessionStore.getAuthorizationHeader(this);
+        if (authorization == null) {
+            return;
+        }
+
+        ApiService apiService = RetrofitClient.getClient().create(ApiService.class);
+        apiService.verifyToken(authorization).enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(Call<String> call, Response<String> response) {
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+                if (response.isSuccessful()) {
+                    openMainActivity();
+                } else {
+                    SessionStore.clear(LoginActivity.this);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable throwable) {
+                // 서버에 잠시 연결되지 않아도 사용자가 수동 로그인은 할 수 있게 둡니다.
+            }
+        });
+    }
+
+    private void openMainActivity() {
+        startActivity(new Intent(LoginActivity.this, MainActivity.class));
+        finish();
+    }
+
     private void loginUser(String email, String password) {
         ApiService apiService = RetrofitClient.getClient().create(ApiService.class);
         AuthRequest request = new AuthRequest(email, password);
 
-        Call<String> call = apiService.login(email, password);
+        Call<String> call = apiService.login(request);
         call.enqueue(new Callback<String>() {
             @Override
             public void onResponse(Call<String> call, Response<String> response) {
                 if (response.isSuccessful()) {
+                    String token = response.body();
+                    if (token == null || token.trim().isEmpty()) {
+                        Toast.makeText(LoginActivity.this, "서버에서 인증 토큰을 받지 못했습니다.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    SessionStore.saveToken(LoginActivity.this, token.trim());
                     Toast.makeText(LoginActivity.this, "로그인 성공!", Toast.LENGTH_SHORT).show();
 
                     // 성공 시 MainActivity로 화면 이동!
-                    Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                    startActivity(intent);
-
-                    finish(); // 뒤로가기 눌렀을 때 다시 로그인 화면이 나오지 않도록 종료
+                    openMainActivity(); // 뒤로가기 눌렀을 때 다시 로그인 화면이 나오지 않도록 종료
                 } else {
                     Toast.makeText(LoginActivity.this, "로그인 실패: 확인 필요 (" + response.code() + ")", Toast.LENGTH_SHORT).show();
                 }

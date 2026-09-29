@@ -38,6 +38,10 @@
             android:exported="false"
             />
 
+        <activity
+            android:name=".FileHistoryActivity"
+            android:exported="false" />
+
     </application>
 
 </manifest>
