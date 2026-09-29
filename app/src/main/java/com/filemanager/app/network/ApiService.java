@@ -52,6 +52,14 @@ public interface ApiService {
             @Query("path") String path
     );
 
+    @POST("api/files/move")
+    Call<String> moveFile(
+            @Header("Authorization") String authorization,
+            @Query("pcId") Long pcId,
+            @Query("sourcePath") String sourcePath,
+            @Query("destinationPath") String destinationPath
+    );
+
     @GET("api/files/history")
     Call<List<FileOperationLogItem>> getFileHistory(
             @Header("Authorization") String authorization,

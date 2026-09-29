@@ -3,11 +3,12 @@ package com.filemanager.app;
 import android.os.Bundle;
 import android.content.Intent;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Button;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -42,6 +43,8 @@ public class FileListActivity extends AppCompatActivity {
     private TextView tvCurrentPath;
     private Button btnSortFiles;
     private Button btnViewHistory;
+    private Button btnMoveHere;
+    private Button btnCancelMove;
     private int currentSortMode = FileListAdapter.SORT_BY_NAME;
     private final String[] sortLabels = {
             "정렬: 이름순",
@@ -52,6 +55,11 @@ public class FileListActivity extends AppCompatActivity {
     private Long pcId;
     private String currentPath = "/";
     private Call<List<RemoteFile>> currentCall;
+    private Call<String> moveCall;
+    private boolean selectingMoveDestination;
+    private String pendingMoveSourcePath;
+    private String pendingMoveSourceParent = "/";
+    private String pendingMoveFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +69,8 @@ public class FileListActivity extends AppCompatActivity {
         tvCurrentPath = findViewById(R.id.tvCurrentPath);
         btnSortFiles = findViewById(R.id.btnSortFiles);
         btnViewHistory = findViewById(R.id.btnViewHistory);
+        btnMoveHere = findViewById(R.id.btnMoveHere);
+        btnCancelMove = findViewById(R.id.btnCancelMove);
         rvFileList = findViewById(R.id.rvFileList);
         rvFileList.setLayoutManager(new LinearLayoutManager(this));
 
@@ -83,6 +93,9 @@ public class FileListActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+        btnMoveHere.setOnClickListener(view -> confirmMoveToCurrentFolder());
+        btnCancelMove.setOnClickListener(view -> cancelMoveDestinationSelection());
+
         pcId = getIntent().getLongExtra("PC_ID", -1L);
 
         if (pcId == null || pcId <= 0L) {
@@ -99,27 +112,170 @@ public class FileListActivity extends AppCompatActivity {
             return;
         }
 
-        if (!file.isDirectory()) {
-            // 이 화면은 파일 목록 확인용입니다. 파일 이동은 PC에서 처리합니다.
+        if (selectingMoveDestination) {
+            if (file.isDirectory()) {
+                navigateIntoFolder(file);
+            } else {
+                showToast("이동할 목적지로는 폴더를 선택해 주세요.");
+            }
             return;
         }
 
-        String basePath = normalizeDisplayPath(currentPath);
-
-        if ("/".equals(basePath)) {
-            loadFiles(file.getFileName());
-        } else {
-            loadFiles(basePath + "/" + file.getFileName());
+        if (!file.isDirectory()) {
+            beginMoveDestinationSelection(file);
+            return;
         }
+
+        navigateIntoFolder(file);
+    }
+
+    private void navigateIntoFolder(RemoteFile folder) {
+        String basePath = normalizeDisplayPath(currentPath);
+        if ("/".equals(basePath)) {
+            loadFiles(folder.getFileName());
+        } else {
+            loadFiles(basePath + "/" + folder.getFileName());
+        }
+    }
+
+    private void beginMoveDestinationSelection(RemoteFile file) {
+        pendingMoveFileName = file.getFileName();
+        pendingMoveSourceParent = currentPath;
+        pendingMoveSourcePath = "/".equals(currentPath)
+                ? file.getFileName()
+                : currentPath + "/" + file.getFileName();
+
+        selectingMoveDestination = true;
+        btnMoveHere.setVisibility(View.VISIBLE);
+        btnCancelMove.setVisibility(View.VISIBLE);
+        btnSortFiles.setVisibility(View.GONE);
+        btnViewHistory.setVisibility(View.GONE);
+
+        showToast("목적지 폴더를 찾아 이동한 뒤 ‘이 폴더로 이동’을 누르세요.");
+        loadFiles("/");
+    }
+
+    private void confirmMoveToCurrentFolder() {
+        if (!selectingMoveDestination || pendingMoveSourcePath == null) {
+            return;
+        }
+
+        String destinationPath = "/".equals(currentPath) ? "" : currentPath;
+        String destinationLabel = destinationPath.isEmpty()
+                ? "바탕화면"
+                : "바탕화면/" + destinationPath;
+        String message = pendingMoveFileName + " 파일을\n"
+                + destinationLabel + " 폴더로 이동할까요?";
+
+        if ("FolderHelperTest".equals(destinationPath)) {
+            message += "\n\n보낸 뒤에는 파일 이름에 따라 자동 분류됩니다.";
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("파일 이동 확인")
+                .setMessage(message)
+                .setPositiveButton("이동", (dialog, which) ->
+                        moveFileTo(destinationPath, destinationLabel))
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void moveFileTo(String destinationPath, String destinationLabel) {
+        String authorization = SessionStore.getAuthorizationHeader(this);
+        if (authorization == null) {
+            showToast("로그인이 필요합니다. 다시 로그인해 주세요.");
+            return;
+        }
+
+        String sourcePath = pendingMoveSourcePath;
+        String fileName = pendingMoveFileName;
+        String sourceParent = pendingMoveSourceParent;
+
+        ApiService apiService =
+                RetrofitClient.getClient().create(ApiService.class);
+
+        if (moveCall != null) {
+            moveCall.cancel();
+        }
+
+        moveCall = apiService.moveFile(
+                authorization,
+                pcId,
+                sourcePath,
+                destinationPath
+        );
+
+        moveCall.enqueue(new Callback<String>() {
+            @Override
+            public void onResponse(
+                    Call<String> call,
+                    Response<String> response) {
+
+                if (isFinishing() || isDestroyed()) {
+                    return;
+                }
+
+                if (response.isSuccessful()) {
+                    showToast(fileName + " 파일을 "
+                            + destinationLabel + " 폴더로 이동했습니다.");
+                    finishMoveDestinationSelection();
+                    loadFiles(sourceParent);
+                } else {
+                    String message = "파일 이동에 실패했습니다. (HTTP "
+                            + response.code() + ")";
+                    ResponseBody errorBody = response.errorBody();
+                    if (errorBody != null) {
+                        try {
+                            String serverMessage = errorBody.string().trim();
+                            if (!serverMessage.isEmpty()) {
+                                message = serverMessage;
+                            }
+                        } catch (IOException exception) {
+                            Log.w(TAG, "이동 오류 내용을 읽지 못했습니다.", exception);
+                        }
+                    }
+                    showToast(message);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<String> call, Throwable throwable) {
+                if (call.isCanceled() || isFinishing() || isDestroyed()) {
+                    return;
+                }
+
+                Log.e(TAG, "파일 이동 요청 실패", throwable);
+                showToast(createNetworkErrorMessage(throwable));
+            }
+        });
+    }
+
+    private void cancelMoveDestinationSelection() {
+        String sourceParent = pendingMoveSourceParent;
+        finishMoveDestinationSelection();
+        loadFiles(sourceParent);
+    }
+
+    private void finishMoveDestinationSelection() {
+        selectingMoveDestination = false;
+        pendingMoveSourcePath = null;
+        pendingMoveFileName = null;
+        btnMoveHere.setVisibility(View.GONE);
+        btnCancelMove.setVisibility(View.GONE);
+        btnSortFiles.setVisibility(View.VISIBLE);
+        btnViewHistory.setVisibility(View.VISIBLE);
     }
 
     private void loadFiles(String path) {
         currentPath = normalizeDisplayPath(path);
-        tvCurrentPath.setText("경로: " + currentPath + " (불러오는 중)");
+        updatePathLabel(true);
         adapter.updateList(new ArrayList<>());
 
         if (currentCall != null) {
             currentCall.cancel();
+        }
+        if (moveCall != null) {
+            moveCall.cancel();
         }
 
         String authorization =
@@ -150,7 +306,7 @@ public class FileListActivity extends AppCompatActivity {
                     return;
                 }
 
-                tvCurrentPath.setText("경로: " + currentPath);
+                updatePathLabel(false);
 
                 if (response.isSuccessful()) {
                     List<RemoteFile> files = response.body();
@@ -189,6 +345,14 @@ public class FileListActivity extends AppCompatActivity {
         });
     }
 
+    private void updatePathLabel(boolean loading) {
+        String prefix = selectingMoveDestination
+                ? "이동할 위치 선택: 바탕화면 "
+                : "바탕화면 ";
+        tvCurrentPath.setText(prefix + currentPath
+                + (loading ? " (불러오는 중)" : ""));
+    }
+
     private String normalizeDisplayPath(String path) {
         if (path == null || path.trim().isEmpty() || "/".equals(path.trim())) {
             return "/";
@@ -225,6 +389,13 @@ public class FileListActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
+        if (selectingMoveDestination) {
+            if (!navigateToParentFolder()) {
+                cancelMoveDestinationSelection();
+            }
+            return;
+        }
+
         if (!navigateToParentFolder()) {
             super.onBackPressed();
         }
@@ -338,6 +509,9 @@ public class FileListActivity extends AppCompatActivity {
     protected void onDestroy() {
         if (currentCall != null) {
             currentCall.cancel();
+        }
+        if (moveCall != null) {
+            moveCall.cancel();
         }
 
         super.onDestroy();

@@ -32,6 +32,33 @@
         android:layout_marginEnd="8dp"
         android:text="분류 기록 보기" />
 
+    <LinearLayout
+        android:id="@+id/layoutMoveDestinationActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnMoveHere"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="4dp"
+            android:visibility="gone"
+            android:text="이 폴더로 이동" />
+
+        <Button
+            android:id="@+id/btnCancelMove"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="8dp"
+            android:visibility="gone"
+            android:text="이동 취소" />
+    </LinearLayout>
+
     <!-- 파일 목록이 뜰 리사이클러뷰 -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvFileList"
