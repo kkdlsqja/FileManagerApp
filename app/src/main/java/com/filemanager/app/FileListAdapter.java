@@ -33,6 +33,7 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
     private List<RemoteFile> fileList;
     private final OnItemClickListener listener;
     private int sortMode = SORT_BY_NAME;
+    private boolean showPath;
 
     public FileListAdapter(
             List<RemoteFile> fileList,
@@ -59,34 +60,35 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         holder.tvFileName.setText(file.getFileName());
 
         String modifiedDate = formatModifiedDate(file.getLastModified());
+        String details;
 
         if (file.isDirectory()) {
             holder.ivFileIcon.setImageResource(R.drawable.folder);
             holder.ivFileIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
-            holder.tvFileDetails.setText("폴더 · 수정 " + modifiedDate);
-            holder.itemView.setContentDescription(
-                    "폴더 " + file.getFileName()
-                            + ", 수정 " + modifiedDate
-                            + ", 열기"
-            );
+            details = "폴더 · 수정 " + modifiedDate;
         } else {
             holder.ivFileIcon.setImageResource(
                     android.R.drawable.ic_menu_gallery
             );
-            holder.tvFileDetails.setText(
-                    formatFileSize(file.getFileSize())
-                            + " · 수정 " + modifiedDate
-            );
-            holder.itemView.setContentDescription(
-                    "파일 " + file.getFileName()
-                            + ", " + formatFileSize(file.getFileSize())
-                            + ", 수정 " + modifiedDate
-            );
+            details = formatFileSize(file.getFileSize())
+                    + " · 수정 " + modifiedDate;
         }
+
+        if (showPath && file.getPath() != null && !file.getPath().isEmpty()) {
+            details = "바탕화면/" + file.getPath() + "\n" + details;
+        }
+
+        holder.tvFileDetails.setText(details);
+        holder.itemView.setContentDescription(
+                (file.isDirectory() ? "폴더 " : "파일 ")
+                        + file.getFileName()
+                        + (showPath && file.getPath() != null
+                        ? ", 바탕화면/" + file.getPath()
+                        : "")
+        );
 
         holder.itemView.setOnClickListener(view -> {
             int currentPosition = holder.getBindingAdapterPosition();
-
             if (currentPosition != RecyclerView.NO_POSITION
                     && listener != null) {
                 listener.onItemClick(fileList.get(currentPosition));
@@ -108,6 +110,11 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
     public void setSortMode(int sortMode) {
         this.sortMode = sortMode;
         sortFileList();
+        notifyDataSetChanged();
+    }
+
+    public void setShowPath(boolean showPath) {
+        this.showPath = showPath;
         notifyDataSetChanged();
     }
 
@@ -136,9 +143,7 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         Collections.sort(
                 fileList,
                 Comparator
-                        .comparing(
-                                (RemoteFile file) -> !file.isDirectory()
-                        )
+                        .comparing((RemoteFile file) -> !file.isDirectory())
                         .thenComparing(secondaryComparator)
                         .thenComparing(
                                 RemoteFile::getFileName,
@@ -155,7 +160,6 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         SimpleDateFormat formatter =
                 new SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.KOREA);
         formatter.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
-
         return formatter.format(new Date(timestamp)) + " KST";
     }
 

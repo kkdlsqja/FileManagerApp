@@ -1,12 +1,13 @@
 package com.filemanager.app.network;
 
 public class RemoteFile {
-    private String fileName;    // 파일 또는 폴더 이름
-    private boolean isDirectory; // 폴더인지 파일인지 구분 (true면 폴더)
-    private long fileSize;      // 파일 크기
-    private long lastModified;  // 마지막 수정 시각(epoch milliseconds)
 
-    // Getter
+    private String fileName;
+    private boolean isDirectory;
+    private long fileSize;
+    private long lastModified;
+    private String path;
+
     public String getFileName() {
         return fileName;
     }
@@ -21,5 +22,9 @@ public class RemoteFile {
 
     public long getLastModified() {
         return lastModified;
+    }
+
+    public String getPath() {
+        return path;
     }
 }

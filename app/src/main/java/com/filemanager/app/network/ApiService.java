@@ -52,6 +52,13 @@ public interface ApiService {
             @Query("path") String path
     );
 
+    @GET("api/files/search")
+    Call<List<RemoteFile>> searchFiles(
+            @Header("Authorization") String authorization,
+            @Query("pcId") Long pcId,
+            @Query("query") String query
+    );
+
     @POST("api/files/move")
     Call<String> moveFile(
             @Header("Authorization") String authorization,
