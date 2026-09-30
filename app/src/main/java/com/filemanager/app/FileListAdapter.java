@@ -11,14 +11,14 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.filemanager.app.network.RemoteFile;
 
-import java.util.List;
-import java.util.Date;
-import java.util.Locale;
-import java.util.TimeZone;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHolder> {
 
@@ -34,43 +34,61 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
     private final OnItemClickListener listener;
     private int sortMode = SORT_BY_NAME;
 
-    public FileListAdapter(List<RemoteFile> fileList, OnItemClickListener listener) {
+    public FileListAdapter(
+            List<RemoteFile> fileList,
+            OnItemClickListener listener) {
         this.fileList = fileList;
         this.listener = listener;
     }
 
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(
+            @NonNull ViewGroup parent,
+            int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_file, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(
+            @NonNull ViewHolder holder,
+            int position) {
         RemoteFile file = fileList.get(position);
         holder.tvFileName.setText(file.getFileName());
+
         String modifiedDate = formatModifiedDate(file.getLastModified());
 
         if (file.isDirectory()) {
-            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_sort_by_size);
+            holder.ivFileIcon.setImageResource(R.drawable.folder);
+            holder.ivFileIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
             holder.tvFileDetails.setText("폴더 · 수정 " + modifiedDate);
             holder.itemView.setContentDescription(
-                    "폴더 " + file.getFileName() + ", 수정 " + modifiedDate + ", 열기");
+                    "폴더 " + file.getFileName()
+                            + ", 수정 " + modifiedDate
+                            + ", 열기"
+            );
         } else {
-            holder.ivFileIcon.setImageResource(android.R.drawable.ic_menu_gallery);
+            holder.ivFileIcon.setImageResource(
+                    android.R.drawable.ic_menu_gallery
+            );
             holder.tvFileDetails.setText(
-                    formatFileSize(file.getFileSize()) + " · 수정 " + modifiedDate);
+                    formatFileSize(file.getFileSize())
+                            + " · 수정 " + modifiedDate
+            );
             holder.itemView.setContentDescription(
-                    "파일 " + file.getFileName() + ", "
-                            + formatFileSize(file.getFileSize())
-                            + ", 수정 " + modifiedDate);
+                    "파일 " + file.getFileName()
+                            + ", " + formatFileSize(file.getFileSize())
+                            + ", 수정 " + modifiedDate
+            );
         }
 
         holder.itemView.setOnClickListener(view -> {
             int currentPosition = holder.getBindingAdapterPosition();
-            if (currentPosition != RecyclerView.NO_POSITION && listener != null) {
+
+            if (currentPosition != RecyclerView.NO_POSITION
+                    && listener != null) {
                 listener.onItemClick(fileList.get(currentPosition));
             }
         });
@@ -99,6 +117,7 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         }
 
         Comparator<RemoteFile> secondaryComparator;
+
         if (sortMode == SORT_BY_DATE) {
             secondaryComparator = Comparator
                     .comparingLong(RemoteFile::getLastModified)
@@ -114,8 +133,12 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
             );
         }
 
-        Collections.sort(fileList,
-                Comparator.comparing((RemoteFile file) -> !file.isDirectory())
+        Collections.sort(
+                fileList,
+                Comparator
+                        .comparing(
+                                (RemoteFile file) -> !file.isDirectory()
+                        )
                         .thenComparing(secondaryComparator)
                         .thenComparing(
                                 RemoteFile::getFileName,
@@ -128,9 +151,11 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         if (timestamp <= 0L) {
             return "정보 없음";
         }
+
         SimpleDateFormat formatter =
                 new SimpleDateFormat("yyyy.MM.dd HH:mm", Locale.KOREA);
         formatter.setTimeZone(TimeZone.getTimeZone("Asia/Seoul"));
+
         return formatter.format(new Date(timestamp)) + " KST";
     }
 
@@ -138,16 +163,28 @@ public class FileListAdapter extends RecyclerView.Adapter<FileListAdapter.ViewHo
         if (bytes < 1024L) {
             return bytes + " B";
         }
+
         if (bytes < 1024L * 1024L) {
-            return String.format(Locale.getDefault(), "%.1f KB", bytes / 1024.0);
+            return String.format(
+                    Locale.getDefault(),
+                    "%.1f KB",
+                    bytes / 1024.0
+            );
         }
+
         if (bytes < 1024L * 1024L * 1024L) {
-            return String.format(Locale.getDefault(), "%.1f MB", bytes / (1024.0 * 1024.0));
+            return String.format(
+                    Locale.getDefault(),
+                    "%.1f MB",
+                    bytes / (1024.0 * 1024.0)
+            );
         }
+
         return String.format(
                 Locale.getDefault(),
                 "%.1f GB",
-                bytes / (1024.0 * 1024.0 * 1024.0));
+                bytes / (1024.0 * 1024.0 * 1024.0)
+        );
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

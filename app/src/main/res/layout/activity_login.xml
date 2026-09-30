@@ -48,4 +48,20 @@
         android:layout_marginTop="16dp"
         android:textColor="#0066CC"
         android:padding="8dp" />
+
+    <Button
+        android:id="@+id/btnScanPcQr"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="PC 연결 QR 스캔"
+        android:layout_marginTop="20dp" />
+
+    <Button
+        android:id="@+id/btnServerSettings"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="서버 주소 직접 입력"
+        android:layout_marginTop="8dp" />
+
 </LinearLayout>
+
