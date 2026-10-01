@@ -1,6 +1,7 @@
 package com.filemanager.app;
 
 import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.InputType;
@@ -10,7 +11,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.result.ActivityResultLauncher;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -18,8 +18,6 @@ import com.filemanager.app.network.ApiService;
 import com.filemanager.app.network.AuthRequest;
 import com.filemanager.app.network.RetrofitClient;
 import com.filemanager.app.network.SessionStore;
-import com.journeyapps.barcodescanner.ScanContract;
-import com.journeyapps.barcodescanner.ScanOptions;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -30,11 +28,9 @@ public class LoginActivity extends AppCompatActivity {
     private EditText etEmail;
     private EditText etPassword;
     private Button btnLogin;
-    private Button btnScanPcQr;
     private Button btnServerSettings;
+    private Button btnShowPairingQr;
     private TextView tvGoToSignup;
-
-    private ActivityResultLauncher<ScanOptions> qrScannerLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,32 +40,9 @@ public class LoginActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.etEmail);
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
-        btnScanPcQr = findViewById(R.id.btnScanPcQr);
         btnServerSettings = findViewById(R.id.btnServerSettings);
+        btnShowPairingQr = findViewById(R.id.btnShowPairingQr);
         tvGoToSignup = findViewById(R.id.tvGoToSignup);
-
-        qrScannerLauncher = registerForActivityResult(
-                new ScanContract(),
-                result -> {
-                    String scannedText = result.getContents();
-
-                    if (scannedText == null) {
-                        Toast.makeText(
-                                LoginActivity.this,
-                                "QR 스캔을 취소했습니다.",
-                                Toast.LENGTH_SHORT
-                        ).show();
-                        return;
-                    }
-
-                    saveScannedServerAddress(scannedText);
-                }
-        );
-
-        btnScanPcQr.setOnClickListener(view -> startPcQrScan());
-        btnServerSettings.setOnClickListener(
-                view -> showServerAddressDialog()
-        );
 
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -90,6 +63,14 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
+        btnServerSettings.setOnClickListener(
+                view -> showServerAddressDialog()
+        );
+
+        btnShowPairingQr.setOnClickListener(
+                view -> openPairingQrPage()
+        );
+
         tvGoToSignup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -104,50 +85,6 @@ public class LoginActivity extends AppCompatActivity {
         verifyExistingSession();
     }
 
-    private void startPcQrScan() {
-        ScanOptions options = new ScanOptions();
-        options.setDesiredBarcodeFormats(ScanOptions.QR_CODE);
-        options.setPrompt("PC 화면의 연결 QR 코드를 비춰 주세요.");
-        options.setBeepEnabled(false);
-        options.setOrientationLocked(false);
-        qrScannerLauncher.launch(options);
-    }
-
-    private void saveScannedServerAddress(String scannedText) {
-        try {
-            Uri scannedUri = Uri.parse(scannedText.trim());
-            String path = scannedUri.getPath();
-
-            if (path != null && !path.isEmpty() && !"/".equals(path)) {
-                throw new IllegalArgumentException(
-                        "FolderHelper PC 연결 QR 코드가 아닙니다."
-                );
-            }
-
-            String oldAddress = ServerSettings.getBaseUrl(this);
-            String newAddress = ServerSettings.saveBaseUrl(
-                    this,
-                    scannedText
-            );
-
-            if (!oldAddress.equals(newAddress)) {
-                SessionStore.clear(this);
-            }
-
-            Toast.makeText(
-                    this,
-                    "PC 주소를 저장했습니다: " + newAddress,
-                    Toast.LENGTH_LONG
-            ).show();
-        } catch (IllegalArgumentException exception) {
-            Toast.makeText(
-                    this,
-                    exception.getMessage(),
-                    Toast.LENGTH_LONG
-            ).show();
-        }
-    }
-
     private void showServerAddressDialog() {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -160,10 +97,10 @@ public class LoginActivity extends AppCompatActivity {
         input.setSelection(input.getText().length());
 
         new AlertDialog.Builder(this)
-                .setTitle("서버 주소 직접 입력")
+                .setTitle("서버 주소 설정")
                 .setMessage(
                         "에뮬레이터: http://10.0.2.2:8080/\n"
-                                + "휴대폰: QR 아래 PC IP 주소"
+                                + "휴대폰: 서버 PC의 로컬 IP 주소"
                 )
                 .setView(input)
                 .setPositiveButton("저장", (dialog, which) -> {
@@ -176,6 +113,7 @@ public class LoginActivity extends AppCompatActivity {
                         );
 
                         if (!oldAddress.equals(newAddress)) {
+                            // 주소가 바뀌면 이전 서버에서 받은 토큰을 지웁니다.
                             SessionStore.clear(this);
                         }
 
@@ -194,6 +132,23 @@ public class LoginActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("취소", null)
                 .show();
+    }
+
+    private void openPairingQrPage() {
+        Uri pairingPageUri = Uri.parse(ServerSettings.getBaseUrl(this))
+                .buildUpon()
+                .appendPath("pair")
+                .build();
+
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, pairingPageUri));
+        } catch (ActivityNotFoundException exception) {
+            Toast.makeText(
+                    this,
+                    "QR 페이지를 열 브라우저를 찾을 수 없습니다.",
+                    Toast.LENGTH_LONG
+            ).show();
+        }
     }
 
     private void verifyExistingSession() {
@@ -228,7 +183,7 @@ public class LoginActivity extends AppCompatActivity {
                     public void onFailure(
                             Call<String> call,
                             Throwable throwable) {
-                        // 서버에 연결할 수 없어도 로그인 화면에서 다시 시도할 수 있습니다.
+                        // 서버에 연결할 수 없으면 로그인 화면에서 다시 시도할 수 있습니다.
                     }
                 });
     }

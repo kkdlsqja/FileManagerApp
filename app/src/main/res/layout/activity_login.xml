@@ -1,67 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp">
+    android:padding="24dp">
 
-    <TextView
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:paddingBottom="64dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="32dp"
+                android:text="파일 관리 앱"
+                android:textColor="#000000"
+                android:textSize="28sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/etEmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="이메일"
+                android:inputType="textEmailAddress"
+                android:minHeight="48dp" />
+
+            <EditText
+                android:id="@+id/etPassword"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="비밀번호"
+                android:inputType="textPassword"
+                android:minHeight="48dp" />
+
+            <Button
+                android:id="@+id/btnLogin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="로그인"
+                android:textSize="16sp" />
+
+            <TextView
+                android:id="@+id/tvGoToSignup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:padding="8dp"
+                android:text="아직 계정이 없으신가요? 회원가입"
+                android:textColor="#0066CC" />
+
+            <Button
+                android:id="@+id/btnServerSettings"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="서버 주소 설정" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/btnShowPairingQr"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="파일 관리 앱"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="32dp"
-        android:textColor="#000000" />
+        android:layout_gravity="bottom|start"
+        android:text="PC 연결 QR 보기" />
 
-    <EditText
-        android:id="@+id/etEmail"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="이메일"
-        android:inputType="textEmailAddress"
-        android:minHeight="48dp" />
-
-    <EditText
-        android:id="@+id/etPassword"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="비밀번호"
-        android:inputType="textPassword"
-        android:minHeight="48dp"
-        android:layout_marginTop="16dp" />
-
-    <Button
-        android:id="@+id/btnLogin"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="로그인"
-        android:textSize="16sp"
-        android:layout_marginTop="24dp" />
-
-    <TextView
-        android:id="@+id/tvGoToSignup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="아직 계정이 없으신가요? 회원가입"
-        android:layout_marginTop="16dp"
-        android:textColor="#0066CC"
-        android:padding="8dp" />
-
-    <Button
-        android:id="@+id/btnScanPcQr"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="PC 연결 QR 스캔"
-        android:layout_marginTop="20dp" />
-
-    <Button
-        android:id="@+id/btnServerSettings"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="서버 주소 직접 입력"
-        android:layout_marginTop="8dp" />
-
-</LinearLayout>
-
+</FrameLayout>
