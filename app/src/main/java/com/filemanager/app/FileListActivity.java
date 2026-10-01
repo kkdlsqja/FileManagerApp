@@ -203,9 +203,7 @@ public class FileListActivity extends AppCompatActivity {
             String parentPath = lastSlash < 0
                     ? "/"
                     : foundPath.substring(0, lastSlash);
-
-            showToast("파일 위치를 열었습니다: 바탕화면/" + foundPath);
-            loadFiles(parentPath);
+            beginMoveDestinationSelection(file, foundPath, parentPath);
         }
     }
 
@@ -359,11 +357,19 @@ public class FileListActivity extends AppCompatActivity {
     }
 
     private void beginMoveDestinationSelection(RemoteFile file) {
-        pendingMoveFileName = file.getFileName();
-        pendingMoveSourceParent = currentPath;
-        pendingMoveSourcePath = "/".equals(currentPath)
+        String sourcePath = "/".equals(currentPath)
                 ? file.getFileName()
                 : currentPath + "/" + file.getFileName();
+        beginMoveDestinationSelection(file, sourcePath, currentPath);
+    }
+
+    private void beginMoveDestinationSelection(
+            RemoteFile file,
+            String sourcePath,
+            String sourceParent) {
+        pendingMoveFileName = file.getFileName();
+        pendingMoveSourceParent = sourceParent;
+        pendingMoveSourcePath = sourcePath;
 
         selectingMoveDestination = true;
         btnMoveHere.setVisibility(View.VISIBLE);
